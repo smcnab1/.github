@@ -16,7 +16,7 @@ Use the existing changelog or GitHub’s **Generate release notes** when prepari
 
 ## Checking maintenance
 
-Run the read-only command below from a checkout with GitHub CLI authenticated. It lists active public repositories with missing metadata, disabled branch cleanup or an unsuccessful latest default-branch workflow run. Review the named run in Actions and check whether its workflow still serves the project. Forks may intentionally follow upstream conventions.
+Run the read-only command below from a checkout with GitHub CLI authenticated. It checks public metadata, branch cleanup and secret protection. For original repositories it checks README presence, update configuration for recognised manifests and the most recent result per workflow within the last 30 default-branch runs. Review the named run in Actions and check whether its workflow still serves the project. Forks may intentionally follow upstream conventions.
 
 ```sh
 sh check-portfolio.sh

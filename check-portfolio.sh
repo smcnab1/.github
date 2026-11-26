@@ -5,9 +5,18 @@ repos=$(gh api --paginate 'users/smcnab1/repos?per_page=100' --jq '.[] | select(
 printf '%s\n' "$repos" | while read -r repo branch fork description topics; do
   [ "$description" = true ] || echo "$repo: missing description"
   [ "$topics" = true ] || echo "$repo: missing topics"
-  cleanup=$(gh api "repos/smcnab1/$repo" --jq .delete_branch_on_merge)
-  [ "$cleanup" = true ] || echo "$repo: check merged branch cleanup"
+  base="repos/smcnab1/$repo"
+  gh api "$base" --jq '
+    if .delete_branch_on_merge != true then .name + ": check merged branch cleanup" else empty end,
+    if .security_and_analysis.secret_scanning.status != "enabled" then .name + ": check secret scanning" else empty end,
+    if .security_and_analysis.secret_scanning_push_protection.status != "enabled" then .name + ": check push protection" else empty end'
   [ "$fork" = false ] || continue
-  runs=$(gh api -X GET "repos/smcnab1/$repo/actions/runs" -f branch="$branch" -F per_page=1 --jq '.workflow_runs[] | select(.conclusion != null and .conclusion != "success" and .conclusion != "skipped" and .conclusion != "neutral") | .html_url')
-  [ -z "$runs" ] || echo "$repo: review $runs"
+  files=$(gh api "$base/contents" --jq '.[].name')
+  printf '%s\n' "$files" | grep -Eiq '^readme([.]|$)' || echo "$repo: check README location"
+  if printf '%s\n' "$files" | grep -Eq '^(package.json|Package.swift)$'; then
+    config=$(gh api "$base/contents/.github" --jq '.[].name')
+    printf '%s\n' "$config" | grep -Eq '^dependabot[.]ya?ml$' || echo "$repo: check dependency update configuration"
+  fi
+  runs=$(gh api -X GET "repos/smcnab1/$repo/actions/runs" -f branch="$branch" -F per_page=30 --jq '.workflow_runs | group_by(.workflow_id)[] | max_by(.created_at) | select(.conclusion != null and .conclusion != "success" and .conclusion != "skipped" and .conclusion != "neutral") | .html_url')
+  [ -z "$runs" ] || printf '%s\n' "$runs" | sed "s|^|$repo: review |"
 done
