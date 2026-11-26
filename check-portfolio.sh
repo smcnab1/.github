@@ -14,7 +14,10 @@ printf '%s\n' "$repos" | while read -r repo branch fork description topics; do
   files=$(gh api "$base/contents" --jq '.[].name')
   printf '%s\n' "$files" | grep -Eiq '^readme([.]|$)' || echo "$repo: check README location"
   if printf '%s\n' "$files" | grep -Eq '^(package.json|Package.swift)$'; then
-    config=$(gh api "$base/contents/.github" --jq '.[].name')
+    config=
+    if printf '%s\n' "$files" | grep -Fxq .github; then
+      config=$(gh api "$base/contents/.github" --jq '.[].name')
+    fi
     printf '%s\n' "$config" | grep -Eq '^dependabot[.]ya?ml$' || echo "$repo: check dependency update configuration"
   fi
   runs=$(gh api -X GET "repos/smcnab1/$repo/actions/runs" -f branch="$branch" -F per_page=30 --jq '.workflow_runs | group_by(.workflow_id)[] | max_by(.created_at) | select(.conclusion != null and .conclusion != "success" and .conclusion != "skipped" and .conclusion != "neutral") | .html_url')
